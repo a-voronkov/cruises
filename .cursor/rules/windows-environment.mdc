@@ -1,0 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Remember that I'm using Windows 11 on local development and local docker deployment.
+
+So use PowerShell instead of sh/bash running commands on the host machine.
