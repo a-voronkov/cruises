@@ -2,7 +2,7 @@ FROM node:18-slim
 
 WORKDIR /app
 
-COPY front/package*.json ./
+COPY front.react/package*.json ./
 RUN npm install
 
 EXPOSE 5173

@@ -166,6 +166,10 @@ app.get('/api/points', async (req, res) => {
 app.get('/api/ships', async (req, res) => {
   try {
     const { date_from, date_to } = req.query;
+    // Если нет фильтра по датам, не возвращаем ничего
+    if (!date_from && !date_to) {
+      return res.json([]);
+    }
     let where = [];
     let params = [];
     if (date_from && date_to) {
@@ -183,6 +187,7 @@ app.get('/api/ships', async (req, res) => {
       SELECT 
         s.ship_id,
         s.ship_name,
+        s.company_id,
         comp.company_name,
         comp.logo_url,
         COUNT(DISTINCT st.cruise_id) as cruise_count
@@ -192,6 +197,19 @@ app.get('/api/ships', async (req, res) => {
       ${whereClause}
       GROUP BY s.ship_id
     `, params);
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Новый endpoint для получения списка компаний
+app.get('/api/companies', async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT company_id, company_name FROM companies ORDER BY company_name ASC
+    `);
     res.json(rows);
   } catch (err) {
     console.error(err);
