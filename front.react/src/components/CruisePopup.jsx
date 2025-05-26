@@ -17,7 +17,7 @@ import { formatDate } from '../utils/format';
 
 function getCruiseDays(stops) {
   if (!stops || stops.length === 0) return [];
-  // Сортируем остановки по дате
+  // Sort stops by date
   const sorted = stops.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
   const days = [];
   let dayNum = 1;
@@ -25,7 +25,7 @@ function getCruiseDays(stops) {
     const stop = sorted[i];
     const date = stop.date;
     if (i > 0) {
-      // Проверяем пропущенные дни между предыдущей и текущей остановкой
+      // Check for missing days between previous and current stop
       let prevDate = new Date(sorted[i - 1].date);
       let currDate = new Date(date);
       prevDate.setHours(0,0,0,0);
@@ -41,7 +41,7 @@ function getCruiseDays(stops) {
         });
       }
     }
-    // Добавляем только если это не дубликат даты предыдущей остановки
+    // Add only if this is not a duplicate date of the previous stop
     if (days.length === 0 || days[days.length - 1].date !== date) {
       days.push({
         day: dayNum++,

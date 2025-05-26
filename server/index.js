@@ -56,7 +56,7 @@ app.get('/api/cruises', async (req, res) => {
       where.push('st.date <= ?');
       params.push(date_to);
     }
-    // Фильтрация по дате начала круиза (stop_order=1)
+    // Filtering by cruise start date (stop_order=1)
     if (date_from) {
 //      where.push(`st.stop_order != 1 OR (st.stop_order = 1 AND st.date >= ?)`);
 //      params.push(date_from);
@@ -76,7 +76,7 @@ app.get('/api/cruises', async (req, res) => {
       }
     }
     const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
-    // 1. Получаем cruise_id с остановками в диапазоне и по кораблям
+    // 1. Get cruise_id with stops in the range and by ships
     const [idRows] = await pool.query(`
       SELECT DISTINCT st.cruise_id
       FROM stops st
@@ -87,7 +87,7 @@ app.get('/api/cruises', async (req, res) => {
     if (cruiseIds.length === 0) {
       return res.json([]);
     }
-    // 2. Получаем данные по этим cruise_id (фильтр по ship_id в WHERE)
+    // 2. Get data for these cruise_id (ship_id filter in WHERE)
     let cruiseWhere = `c.cruise_id IN (${cruiseIds.map(() => '?').join(',')})`;
     let cruiseParams = [...cruiseIds];
     if (shipIds.length > 0) {
@@ -129,7 +129,7 @@ app.get('/api/cruises', async (req, res) => {
       GROUP BY c.cruise_id
     `, cruiseParams);
 
-    // Преобразуем stops в массив объектов
+    // Convert stops to array of objects
     const cruises = rows.map(cruise => ({
       ...cruise,
       stops: cruise.stops ? JSON.parse(cruise.stops) : []
@@ -166,7 +166,7 @@ app.get('/api/points', async (req, res) => {
 app.get('/api/ships', async (req, res) => {
   try {
     const { date_from, date_to } = req.query;
-    // Если нет фильтра по датам, не возвращаем ничего
+    // If there is no date filter, return nothing
     if (!date_from && !date_to) {
       return res.json([]);
     }
@@ -204,7 +204,7 @@ app.get('/api/ships', async (req, res) => {
   }
 });
 
-// Новый endpoint для получения списка компаний
+// New endpoint to get list of companies
 app.get('/api/companies', async (req, res) => {
   try {
     const [rows] = await pool.query(`
@@ -234,7 +234,7 @@ app.get('/api/debug/points', async (req, res) => {
       ORDER BY cruise_count DESC
     `);
     
-    // Проверяем наличие координат
+    // Check for coordinates
     const pointsWithCoords = rows.filter(p => p.lat != null && p.lng != null);
     const pointsWithoutCoords = rows.filter(p => p.lat == null || p.lng == null);
     
@@ -247,7 +247,7 @@ app.get('/api/debug/points', async (req, res) => {
         point_name: p.point_name,
         country: p.country
       })),
-      sample_points: pointsWithCoords.slice(0, 5) // Показываем первые 5 точек с координатами
+      sample_points: pointsWithCoords.slice(0, 5) // Show first 5 points with coordinates
     });
   } catch (err) {
     console.error(err);
@@ -255,7 +255,7 @@ app.get('/api/debug/points', async (req, res) => {
   }
 });
 
-// Новый endpoint для получения информации о конкретном круизе
+// New endpoint to get info about a specific cruise
 app.get('/api/cruise/:id', async (req, res) => {
   try {
     const cruiseId = req.params.id;

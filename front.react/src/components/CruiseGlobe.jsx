@@ -24,7 +24,7 @@ function CountryBufferMesh({ coordinates, color = 0xf8f8f8, radius = 2, offset =
     const vertices = [];
     const holes = [];
     let holeIndex = 0;
-    // ВАЖНО: инвертируем порядок обхода для правильной ориентации нормалей
+    // IMPORTANT: reverse ring order for correct normal orientation
     const reversed = coordinates.map(ring => ring.slice().reverse());
     reversed.forEach((ring, i) => {
       if (i > 0) {
@@ -40,7 +40,7 @@ function CountryBufferMesh({ coordinates, color = 0xf8f8f8, radius = 2, offset =
     reversed.forEach(ring => {
       ring.forEach(([lon, lat]) => {
         const [x, y, z] = lonLatToVector3(lon, lat, radius + offset);
-        verts2d.push(x, z); // xz-проекция
+        verts2d.push(x, z); // xz-projection
       });
     });
     const triangles = earcut(verts2d, holes, 2);
@@ -93,10 +93,10 @@ const CRUISE_COLORS = [
 const CRUISE_LINE_RADIUS = 0.001;
 
 function lonLatDayToVec3(lon, lat, dayNum, radius = 2, height = 0.12) {
-  // dayNum влияет на высоту маршрута (слегка поднимаем кривую)
+  // dayNum affects route height (slightly raises the curve)
   const phi = (90 - lat) * (Math.PI / 180);
   const theta = (lon + 180) * (Math.PI / 180);
-  const r = radius + height + dayNum * 0.002; // небольшое смещение по дням
+  const r = radius + height + dayNum * 0.002; // not significant day shift
   const x = -(r * Math.sin(phi) * Math.cos(theta));
   const z = r * Math.sin(phi) * Math.sin(theta);
   const y = r * Math.cos(phi);
@@ -146,7 +146,7 @@ function loadCameraState() {
 }
 
 function CruiseStatusBar({ tooltip }) {
-  // Строка статуса внизу блока
+  // Status bar at the bottom of the block
   let text = '';
   if (tooltip && tooltip.visible && tooltip.data) {
     if (tooltip.data.type === 'port') {
@@ -200,7 +200,7 @@ function CruiseRoutes({ selectedShipIds, onCruiseClick, setTooltip }) {
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        // Фильтруем круизы: только те, у которых минимальная дата остановки >= today
+        // Filter cruises: only those with minimum stop date >= today
         const filtered = data.filter(cruise => {
           if (!cruise.stops || cruise.stops.length === 0) return false;
           const minDate = cruise.stops.reduce((min, stop) => {
@@ -215,7 +215,7 @@ function CruiseRoutes({ selectedShipIds, onCruiseClick, setTooltip }) {
       });
   }, [selectedShipIds]);
 
-  // Только onPointerOver/onPointerOut для тултипов
+  // Only onPointerOver/onPointerOut for tooltips
   return cruises.map((cruise, idx) => {
     if (!cruise.stops || cruise.stops.length < 2) return null;
     const color = CRUISE_COLORS[idx % CRUISE_COLORS.length];
@@ -281,7 +281,7 @@ function CruiseRoutes({ selectedShipIds, onCruiseClick, setTooltip }) {
 
 function CameraPersistence({ controlsRef }) {
   const { camera } = useThree();
-  // Восстановление
+  // Restore
   useEffect(() => {
     const state = loadCameraState();
     if (state && camera && controlsRef.current) {
@@ -290,7 +290,7 @@ function CameraPersistence({ controlsRef }) {
       controlsRef.current.update();
     }
   }, [camera, controlsRef]);
-  // Сохранение
+  // Save
   useEffect(() => {
     if (!controlsRef.current || !camera) return;
     const controls = controlsRef.current;
@@ -309,12 +309,12 @@ function useKeyboardOrbit(controlsRef) {
       if (!controlsRef.current) return;
       const controls = controlsRef.current;
       const camera = controls.object;
-      // Вращаем вокруг центра (target)
+      // Rotate around center (target)
       const offset = camera.position.clone().sub(controls.target);
       const radius = offset.length();
       let phi = Math.acos(offset.y / radius); // [0, PI]
       let theta = Math.atan2(offset.x, offset.z); // [-PI, PI]
-      const step = 10 * Math.PI / 180; // 10 градусов
+      const step = 10 * Math.PI / 180; // 10 degrees
       let changed = false;
       if (e.key === 'ArrowLeft') {
         theta -= step;
@@ -335,7 +335,7 @@ function useKeyboardOrbit(controlsRef) {
         changed = true;
       }
       if (changed) {
-        // Новая позиция
+        // New position
         offset.x = radius * Math.sin(phi) * Math.sin(theta);
         offset.y = radius * Math.cos(phi);
         offset.z = radius * Math.sin(phi) * Math.cos(theta);
@@ -363,7 +363,7 @@ const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
 
   useKeyboardOrbit(controlsRef);
 
-  // Фокус на Canvas для приёма клавиш
+  // Focus on Canvas to receive keyboard events
   const canvasRef = useRef();
   useEffect(() => {
     if (canvasRef.current) {
@@ -379,14 +379,14 @@ const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
       >
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 5, 5]} intensity={1} />
-        {/* Сфера земли */}
+        {/* Earth sphere */}
         <mesh>
           <sphereGeometry args={[radius, 64, 64]} />
           <meshStandardMaterial color="#4a90e2" transparent opacity={0} />
         </mesh>
-        {/* Страны */}
+        {/* Countries */}
         {geojson && <Countries geojson={geojson} radius={radius} offset={countryOffset} />}
-        {/* Круизы и порты */}
+        {/* Cruises and ports */}
         <CruiseRoutes selectedShipIds={selectedShipIds} onCruiseClick={onCruiseClick} setTooltip={setTooltip} />
         <OrbitControls enablePan={false} ref={controlsRef} />
         <CameraPersistence controlsRef={controlsRef} />

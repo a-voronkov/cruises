@@ -10,7 +10,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
 function groupShipsByCompany(ships, companies) {
-  // Возвращает [{ company_id, company_name, ships: [...] }]
+  // Returns [{ company_id, company_name, ships: [...] }]
   const companyMap = {};
   companies.forEach(c => {
     companyMap[c.company_id] = { ...c, ships: [] };
@@ -22,7 +22,7 @@ function groupShipsByCompany(ships, companies) {
     }
     companyMap[cid].ships.push(ship);
   });
-  // Сортировка компаний и кораблей
+  // Sort companies and ships
   return Object.values(companyMap)
     .sort((a, b) => (a.company_name || '').localeCompare(b.company_name || '', undefined, { sensitivity: 'base' }))
     .map(group => ({
@@ -34,7 +34,7 @@ function groupShipsByCompany(ships, companies) {
 const ShipFilter = ({ ships, companies, selectedShipIds, selectedCompanyIds, onChange }) => {
   const grouped = groupShipsByCompany(ships, companies);
   const allShipIds = ships.map(s => String(s.ship_id));
-  // Состояние раскрытия компаний
+  // State for expanded companies
   const [expandedCompanies, setExpandedCompanies] = useState([]);
 
   const handleToggleShip = (shipId) => {
@@ -49,11 +49,11 @@ const ShipFilter = ({ ships, companies, selectedShipIds, selectedCompanyIds, onC
     let newSelectedShips;
     let newSelectedCompanies;
     if (allSelected) {
-      // Снять все корабли компании
+      // Deselect all ships of the company
       newSelectedShips = selectedShipIds.filter(id => !shipIds.includes(id));
       newSelectedCompanies = selectedCompanyIds.filter(cid => cid !== String(company_id));
     } else {
-      // Выделить все корабли компании
+      // Select all ships of the company
       newSelectedShips = Array.from(new Set([...selectedShipIds, ...shipIds]));
       newSelectedCompanies = Array.from(new Set([...selectedCompanyIds, String(company_id)]));
     }

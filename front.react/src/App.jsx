@@ -50,12 +50,12 @@ function App() {
   const [{ selectedShipIds, selectedCompanyIds }, setFilterState] = useState(() => loadShipFilterState());
   const [popupCruiseId, setPopupCruiseId] = useState(null);
 
-  // Загрузка компаний и кораблей
+  // Load companies and ships
   useEffect(() => {
     fetchCompanies().then(setCompanies);
     fetchShips().then(ships => {
       setShips(ships);
-      // После загрузки ships фильтруем только невалидные id
+      // After loading ships, filter only valid ids
       const validIds = ships.map(s => String(s.ship_id));
       setFilterState(prev => ({
         ...prev,
@@ -64,7 +64,7 @@ function App() {
     });
   }, []);
 
-  // Сохраняем фильтр при изменении
+  // Save filter on change
   useEffect(() => {
     saveShipFilterState({ selectedShipIds, selectedCompanyIds });
   }, [selectedShipIds, selectedCompanyIds]);
