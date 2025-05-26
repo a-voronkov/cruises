@@ -7,6 +7,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useLoader } from '@react-three/fiber';
 import { TubeGeometry } from 'three';
 import { CatmullRomCurve3, MeshBasicMaterial, Mesh, Vector3 } from 'three';
+import { formatDate } from '../utils/format';
 
 function lonLatToVector3(lon, lat, radius = 2) {
   const phi = (90 - lat) * (Math.PI / 180);
@@ -150,7 +151,7 @@ function CruiseStatusBar({ tooltip }) {
   if (tooltip && tooltip.visible && tooltip.data) {
     if (tooltip.data.type === 'port') {
       const { stop, cruise } = tooltip.data;
-      text = `⚓ ${stop.point_name || ''}${stop.country ? ', ' + stop.country : ''} — ${stop.date ? stop.date : ''} | 🚢 ${cruise.cruise_name || ''}${cruise.ship_name ? ' (' + cruise.ship_name + ')' : ''}`;
+      text = `⚓ ${stop.point_name || ''}${stop.country ? ', ' + stop.country : ''} — ${stop.date ? formatDate(stop.date) : ''} | 🚢 ${cruise.cruise_name || ''}${cruise.ship_name ? ' (' + cruise.ship_name + ')' : ''}`;
     } else if (tooltip.data.type === 'cruise') {
       const { cruise } = tooltip.data;
       text = `🚢 ${cruise.cruise_name || ''}${cruise.ship_name ? ' (' + cruise.ship_name + ')' : ''}${cruise.company_name ? ' — ' + cruise.company_name : ''}`;

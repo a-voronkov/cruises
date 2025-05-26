@@ -5,6 +5,7 @@ import './App.css'
 import CruiseGlobe from './components/CruiseGlobe'
 import ShipFilter from './components/ShipFilter'
 import CruisePopup from './components/CruisePopup'
+import CircularProgress from '@mui/material/CircularProgress';
 
 const SHIP_FILTER_KEY = 'selected_ship_ids';
 
@@ -47,7 +48,7 @@ function App() {
   const [ships, setShips] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [{ selectedShipIds, selectedCompanyIds }, setFilterState] = useState(() => loadShipFilterState());
-  const [popupCruise, setPopupCruise] = useState(null);
+  const [popupCruiseId, setPopupCruiseId] = useState(null);
 
   // Загрузка компаний и кораблей
   useEffect(() => {
@@ -83,11 +84,11 @@ function App() {
         <section className="globe-area">
           <CruiseGlobe
             selectedShipIds={selectedShipIds}
-            onCruiseClick={setPopupCruise}
+            onCruiseClick={cruise => setPopupCruiseId(cruise.cruise_id)}
           />
         </section>
       </div>
-      <CruisePopup cruise={popupCruise} onClose={() => setPopupCruise(null)} />
+      <CruisePopup cruiseId={popupCruiseId} onClose={() => setPopupCruiseId(null)} />
     </div>
   )
 }
