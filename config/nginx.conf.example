@@ -1,36 +1,30 @@
 server {
     listen 80;
     server_name localhost;
+    return 301 https://$host$request_uri;
+}
 
-    root /usr/share/nginx/html;
-    index index.html;
+server {
+    listen 443 ssl;
+    server_name localhost;
 
-    # API proxy
+    ssl_certificate /etc/nginx/certs/localhost.crt;
+    ssl_certificate_key /etc/nginx/certs/localhost.key;
+
+    # Проксируем API на backend
     location /api/ {
-        proxy_pass http://backend:3000/api/;
+        proxy_pass http://backend:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Всё остальное — на Vite dev server
+    location / {
+        proxy_pass http://frontend:5173;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    # Static files
-    location / {
-        try_files $uri $uri/ /index.html;
-        add_header Cache-Control "no-cache";
-    }
-
-    # GeoJSON file
-    location /countries.geo.json {
-        alias /usr/share/nginx/html/countries.geo.json;
-        add_header Cache-Control "no-cache";
-    }
-
-    # Error pages
-    error_page 404 /index.html;
-    error_page 500 502 503 504 /50x.html;
-    location = /50x.html {
-        root /usr/share/nginx/html;
+        proxy_set_header Connection "upgrade";
     }
 } 
