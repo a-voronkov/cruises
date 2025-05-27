@@ -1,32 +1,34 @@
-name: Deploy to AWS Elastic Beanstalk
+name: Deploy to EC2
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.8.0
         with:
-          python-version: '3.x'
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Install EB CLI
-        run: pip install awsebcli
-
-      - name: Copy AWS docker-compose
-        run: cp docker-compose.aws.yml docker-compose.yml
-
-      - name: Deploy to Elastic Beanstalk
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ap-southeast-1
+      - name: Copy files to EC2
         run: |
-          eb init cruises-app --region ap-southeast-1 --platform "Docker"
-          eb use cruises-env
-          eb deploy
+          rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/app
+
+      - name: Deploy on EC2 (docker compose up)
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/${{ secrets.EC2_USER }}/app &&
+            docker compose pull &&
+            docker compose down &&
+            docker compose up -d --build
+          "
