@@ -1,5 +1,5 @@
    {
-     "AWSEBDockerrunVersion": 1,
+     "AWSEBDockerrunVersion": 3,
      "DockerComposeFile": "docker-compose.aws.yml"
    }
    
