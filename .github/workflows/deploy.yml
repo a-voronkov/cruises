@@ -19,7 +19,7 @@ jobs:
         run: pip install awsebcli
 
       - name: Copy AWS docker-compose
-        run: cp docker/docker-compose.aws.yml docker-compose.yml
+        run: cp docker-compose.aws.yml docker-compose.yml
 
       - name: Deploy to Elastic Beanstalk
         env:
