@@ -1,33 +1,16 @@
-import { defineConfig } from 'vite';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
+// https://vite.dev/config/
 export default defineConfig({
-  root: '.',
-  publicDir: './public',
-  build: {
-    outDir: './dist',
-    emptyOutDir: true,
-    rollupOptions: {
-      input: './main.js',
-    },
-  },
   server: {
+    host: true,
+    port: 5173,
+    allowedHosts: true,
     watch: {
       usePolling: true,
-      interval: 300,
-    },
-    host: '0.0.0.0'
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, './')
+      interval: 100
     }
   },
-  optimizeDeps: {
-    include: ['three', 'earcut']
-  }
-}); 
+  plugins: [react()],
+})
