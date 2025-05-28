@@ -146,7 +146,7 @@ function loadCameraState() {
   }
 }
 
-function ShipRoutes({ selectedShipIds, setTooltip, setPopup }) {
+function ShipRoutes({ selectedShipIds, setTooltip, setPopup, dateFrom, dateTo }) {
   const [routes, setRoutes] = useState([]);
   const [hoveredShipId, setHoveredShipId] = useState(null);
   useEffect(() => {
@@ -154,12 +154,6 @@ function ShipRoutes({ selectedShipIds, setTooltip, setPopup }) {
       setRoutes([]);
       return;
     }
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const thirtyDaysLater = new Date(today);
-    thirtyDaysLater.setDate(today.getDate() + 30);
-    const dateFrom = today.toISOString().split('T')[0];
-    const dateTo = thirtyDaysLater.toISOString().split('T')[0];
     let url = `/api/route?date_from=${dateFrom}&date_to=${dateTo}`;
     if (selectedShipIds && selectedShipIds.length > 0) {
       url += `&ship_id=${selectedShipIds.join(',')}`;
@@ -169,7 +163,7 @@ function ShipRoutes({ selectedShipIds, setTooltip, setPopup }) {
       .then(data => {
         setRoutes(data);
       });
-  }, [selectedShipIds]);
+  }, [selectedShipIds, dateFrom, dateTo]);
 
   // Группируем маршруты по кораблям
   const routesByShip = {};
@@ -186,12 +180,12 @@ function ShipRoutes({ selectedShipIds, setTooltip, setPopup }) {
       const color = CRUISE_COLORS[idx % CRUISE_COLORS.length];
       // Сортируем по дате
       const sorted = group.points.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
-      const today = new Date();
-      today.setHours(0,0,0,0);
+      const dateFromObj = new Date(dateFrom);
+      dateFromObj.setHours(0,0,0,0);
       const points = sorted.map(route => {
         const stopDate = new Date(route.date);
         stopDate.setHours(0,0,0,0);
-        const dayNum = Math.floor((stopDate - today) / (1000 * 60 * 60 * 24));
+        const dayNum = Math.floor((stopDate - dateFromObj) / (1000 * 60 * 60 * 24));
         // lng/lat могут быть строками, приводим к числу
         const lng = typeof route.point?.lng === 'string' ? parseFloat(route.point.lng) : route.point?.lng;
         const lat = typeof route.point?.lat === 'string' ? parseFloat(route.point.lat) : route.point?.lat;
@@ -226,7 +220,7 @@ function ShipRoutes({ selectedShipIds, setTooltip, setPopup }) {
             stopDate.setHours(0,0,0,0);
             const lng = typeof route.point?.lng === 'string' ? parseFloat(route.point.lng) : route.point?.lng;
             const lat = typeof route.point?.lat === 'string' ? parseFloat(route.point.lat) : route.point?.lat;
-            const dayNum = Math.floor((stopDate - today) / (1000 * 60 * 60 * 24));
+            const dayNum = Math.floor((stopDate - dateFromObj) / (1000 * 60 * 60 * 24));
             const pos = lonLatDayToVec3(lng, lat, dayNum);
             return (
               <mesh
@@ -321,10 +315,68 @@ function useKeyboardOrbit(controlsRef) {
   }, [controlsRef]);
 }
 
+function addMonths(date, n) {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + n);
+  return d;
+}
+
+function formatDateRange(from, to) {
+  return `${formatDate(from)} — ${formatDate(to)}`;
+}
+
+function DateRangeBar({ dateFrom, dateTo, onChange }) {
+  return (
+    <div style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 54,
+      background: 'rgba(30,40,60,0.98)',
+      color: '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 3000,
+      fontSize: 20,
+      fontWeight: 600,
+      letterSpacing: 0.2,
+      boxShadow: '0 2px 12px #0002',
+      userSelect: 'none',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', maxWidth: 900, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => onChange('add', 1)} style={{ fontSize: 22, width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: '#222', color: '#fff', cursor: 'pointer' }}>-</button>
+          <button onClick={() => onChange('sub', 1)} style={{ fontSize: 22, width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: '#222', color: '#fff', cursor: 'pointer' }}>+</button>
+        </div>
+        <div style={{ flex: 1, textAlign: 'center', fontSize: 20, fontWeight: 600, letterSpacing: 0.2 }}>
+          {formatDateRange(dateFrom, dateTo)}
+        </div>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => onChange('sub', -1)} style={{ fontSize: 22, width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: '#222', color: '#fff', cursor: 'pointer' }}>-</button>
+          <button onClick={() => onChange('add', -1)} style={{ fontSize: 22, width: 36, height: 36, padding: 0, borderRadius: 8, border: 'none', background: '#222', color: '#fff', cursor: 'pointer' }}>+</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
   const [geojson, setGeojson] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false });
   const [popup, setPopup] = useState({ open: false, ship: null, stops: [] });
+  const [dateFrom, setDateFrom] = useState(() => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    return today.toISOString().split('T')[0];
+  });
+  const [dateTo, setDateTo] = useState(() => {
+    const d = new Date();
+    d.setHours(0,0,0,0);
+    d.setDate(d.getDate() + 30);
+    return d.toISOString().split('T')[0];
+  });
   const radius = 2;
   const countryOffset = 0.01;
   const controlsRef = useRef();
@@ -345,8 +397,34 @@ const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
     }
   }, []);
 
+  // Обработчик изменения диапазона дат
+  const handleDateRangeChange = (type, dir) => {
+    if (type === 'add') {
+      if (dir === 1) {
+        // Сдвиг dateFrom на месяц назад
+        const newFrom = addMonths(new Date(dateFrom), -1);
+        setDateFrom(newFrom.toISOString().split('T')[0]);
+      } else {
+        // Сдвиг dateTo на месяц вперёд
+        const newTo = addMonths(new Date(dateTo), 1);
+        setDateTo(newTo.toISOString().split('T')[0]);
+      }
+    } else if (type === 'sub') {
+      if (dir === 1) {
+        // Сдвиг dateFrom на месяц вперёд (сужение)
+        const newFrom = addMonths(new Date(dateFrom), 1);
+        if (newFrom < new Date(dateTo)) setDateFrom(newFrom.toISOString().split('T')[0]);
+      } else {
+        // Сдвиг dateTo на месяц назад (сужение)
+        const newTo = addMonths(new Date(dateTo), -1);
+        if (newTo > new Date(dateFrom)) setDateTo(newTo.toISOString().split('T')[0]);
+      }
+    }
+  };
+
   return (
     <div style={{ width: '100%', height: '100%', background: '#222', position: 'relative' }}>
+      <DateRangeBar dateFrom={dateFrom} dateTo={dateTo} onChange={handleDateRangeChange} />
       <Canvas camera={{ position: [0, 0, 8], fov: 50 }} style={{ width: '100%', height: '100%' }}
         tabIndex={0}
         ref={canvasRef}
@@ -361,7 +439,7 @@ const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
         {/* Countries */}
         {geojson && <Countries geojson={geojson} radius={radius} offset={countryOffset} />}
         {/* Ship routes and ports */}
-        <ShipRoutes selectedShipIds={selectedShipIds} setTooltip={setTooltip} setPopup={setPopup} />
+        <ShipRoutes selectedShipIds={selectedShipIds} setTooltip={setTooltip} setPopup={setPopup} dateFrom={dateFrom} dateTo={dateTo} />
         <OrbitControls enablePan={false} ref={controlsRef} />
         <CameraPersistence controlsRef={controlsRef} />
       </Canvas>
