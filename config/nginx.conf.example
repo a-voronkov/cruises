@@ -11,14 +11,12 @@ server {
     ssl_certificate /etc/nginx/certs/localhost.crt;
     ssl_certificate_key /etc/nginx/certs/localhost.key;
 
-    # Проксируем API на backend
     location /api/ {
         proxy_pass http://backend:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
 
-    # Всё остальное — на Vite dev server
     location / {
         proxy_pass http://frontend:5173;
         proxy_set_header Host $host;

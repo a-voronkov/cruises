@@ -1,10 +1,9 @@
-FROM node:18-slim
+# Dockerfile для NestJS backend (dev)
+FROM node:20
 
 WORKDIR /app
 
 COPY server/package*.json ./
-RUN npm install --include=dev
+RUN npm install --legacy-peer-deps
 
-EXPOSE 3000
-
-CMD ["npm", "run", "dev"] 
+CMD ["npm", "run", "start:dev"] 

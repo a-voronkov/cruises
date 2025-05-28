@@ -22,11 +22,13 @@ services:
     volumes:
       - ./server:/app
       - backend_node_modules:/app/node_modules
+    command: npm run start:dev
     environment:
       - DB_HOST=database
       - DB_USER=root
       - DB_PASSWORD=root
       - DB_NAME=cruises
+      - CHOKIDAR_USEPOLLING=true
     depends_on:
       - database
 
@@ -54,7 +56,8 @@ services:
       - MYSQL_DATABASE=cruises
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
+
 volumes:
   database_data:
   frontend_node_modules:
-  backend_node_modules: 
+  backend_node_modules:

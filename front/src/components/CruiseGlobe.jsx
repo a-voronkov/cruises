@@ -8,6 +8,7 @@ import { useLoader } from '@react-three/fiber';
 import { TubeGeometry } from 'three';
 import { CatmullRomCurve3, MeshBasicMaterial, Mesh, Vector3 } from 'three';
 import { formatDate } from '../utils/format';
+import ShipRouteDrawer from './ShipRouteDrawer';
 
 function lonLatToVector3(lon, lat, radius = 2) {
   const phi = (90 - lat) * (Math.PI / 180);
@@ -90,7 +91,7 @@ function Countries({ geojson, radius, offset }) {
 const CRUISE_COLORS = [
   0xff0000, 0x00aaff, 0x00cc44, 0xff9900, 0x9900ff, 0x00ffcc, 0xff00aa, 0xaaaa00, 0x0088ff, 0xff6600
 ];
-const CRUISE_LINE_RADIUS = 0.001;
+const CRUISE_LINE_RADIUS = 0.003;
 
 function lonLatDayToVec3(lon, lat, dayNum, radius = 2, height = 0.12) {
   // dayNum affects route height (slightly raises the curve)
@@ -145,46 +146,12 @@ function loadCameraState() {
   }
 }
 
-function CruiseStatusBar({ tooltip }) {
-  // Status bar at the bottom of the block
-  let text = '';
-  if (tooltip && tooltip.visible && tooltip.data) {
-    if (tooltip.data.type === 'port') {
-      const { stop, cruise } = tooltip.data;
-      text = `⚓ ${stop.point_name || ''}${stop.country ? ', ' + stop.country : ''} — ${stop.date ? formatDate(stop.date) : ''} | 🚢 ${cruise.cruise_name || ''}${cruise.ship_name ? ' (' + cruise.ship_name + ')' : ''}`;
-    } else if (tooltip.data.type === 'cruise') {
-      const { cruise } = tooltip.data;
-      text = `🚢 ${cruise.cruise_name || ''}${cruise.ship_name ? ' (' + cruise.ship_name + ')' : ''}${cruise.company_name ? ' — ' + cruise.company_name : ''}`;
-    }
-  }
-  if (!text) text = 'Hover a cruise or port for details';
-  return (
-    <div style={{
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: 'rgba(30,40,60,0.98)',
-      color: '#fff',
-      fontWeight: 500,
-      fontSize: 16,
-      padding: '10px 24px',
-      borderTop: '1px solid #333',
-      zIndex: 2000,
-      textAlign: 'left',
-      letterSpacing: 0.2,
-      userSelect: 'none',
-      pointerEvents: 'none',
-      fontFamily: 'inherit',
-    }}>{text}</div>
-  );
-}
-
-function CruiseRoutes({ selectedShipIds, onCruiseClick, setTooltip }) {
-  const [cruises, setCruises] = useState([]);
+function ShipRoutes({ selectedShipIds, setTooltip, setPopup }) {
+  const [routes, setRoutes] = useState([]);
+  const [hoveredShipId, setHoveredShipId] = useState(null);
   useEffect(() => {
     if (!selectedShipIds || selectedShipIds.length === 0) {
-      setCruises([]);
+      setRoutes([]);
       return;
     }
     const today = new Date();
@@ -193,90 +160,96 @@ function CruiseRoutes({ selectedShipIds, onCruiseClick, setTooltip }) {
     thirtyDaysLater.setDate(today.getDate() + 30);
     const dateFrom = today.toISOString().split('T')[0];
     const dateTo = thirtyDaysLater.toISOString().split('T')[0];
-    let url = `/api/cruises?date_from=${dateFrom}&date_to=${dateTo}`;
+    let url = `/api/route?date_from=${dateFrom}&date_to=${dateTo}`;
     if (selectedShipIds && selectedShipIds.length > 0) {
       url += `&ship_id=${selectedShipIds.join(',')}`;
     }
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        // Filter cruises: only those with minimum stop date >= today
-        const filtered = data.filter(cruise => {
-          if (!cruise.stops || cruise.stops.length === 0) return false;
-          const minDate = cruise.stops.reduce((min, stop) => {
-            const d = new Date(stop.date);
-            d.setHours(0,0,0,0);
-            return d < min ? d : min;
-          }, new Date(cruise.stops[0].date));
-          minDate.setHours(0,0,0,0);
-          return minDate >= today;
-        });
-        setCruises(filtered);
+        setRoutes(data);
       });
   }, [selectedShipIds]);
 
-  // Only onPointerOver/onPointerOut for tooltips
-  return cruises.map((cruise, idx) => {
-    if (!cruise.stops || cruise.stops.length < 2) return null;
-    const color = CRUISE_COLORS[idx % CRUISE_COLORS.length];
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    const points = cruise.stops.map(stop => {
-      const stopDate = new Date(stop.date);
-      stopDate.setHours(0,0,0,0);
-      const dayNum = Math.floor((stopDate - today) / (1000 * 60 * 60 * 24));
-      return lonLatDayToVec3(stop.lng, stop.lat, dayNum);
-    });
-    const curve = new CatmullRomCurve3(points);
-    return (
-      <group key={cruise.cruise_id}>
-        <mesh
-          geometry={new TubeGeometry(curve, 100, CRUISE_LINE_RADIUS, 16, false)}
-          onClick={e => {
-            e.stopPropagation();
-            if (onCruiseClick) onCruiseClick(cruise);
-          }}
-          renderOrder={10}
-          cursor="pointer"
-          onPointerOver={e => {
-            setTooltip && setTooltip({ visible: true, data: { type: 'cruise', cruise } });
-          }}
-          onPointerOut={e => {
-            setTooltip && setTooltip({ visible: false });
-          }}
-        >
-          <meshBasicMaterial color={color} />
-        </mesh>
-        {cruise.stops.map((stop, stopIdx) => {
-          const stopDate = new Date(stop.date);
-          stopDate.setHours(0,0,0,0);
-          const dayNum = Math.floor((stopDate - today) / (1000 * 60 * 60 * 24));
-          const pos = lonLatDayToVec3(stop.lng, stop.lat, dayNum);
-          return (
-            <mesh
-              key={stopIdx}
-              position={pos}
-              onClick={e => {
-                e.stopPropagation();
-                if (onCruiseClick) onCruiseClick(cruise);
-              }}
-              renderOrder={11}
-              cursor="pointer"
-              onPointerOver={e => {
-                setTooltip && setTooltip({ visible: true, data: { type: 'port', cruise, stop } });
-              }}
-              onPointerOut={e => {
-                setTooltip && setTooltip({ visible: false });
-              }}
-            >
-              <sphereGeometry args={[0.0125, 16, 16]} />
-              <meshBasicMaterial color={color} />
-            </mesh>
-          );
-        })}
-      </group>
-    );
+  // Группируем маршруты по кораблям
+  const routesByShip = {};
+  routes.forEach(route => {
+    const shipId = route.ship?.id;
+    if (!shipId) return;
+    if (!routesByShip[shipId]) routesByShip[shipId] = { ship: route.ship, points: [] };
+    routesByShip[shipId].points.push(route);
   });
+
+  // Для каждого корабля строим линию по точкам (отсортировано по дате)
+  return <>
+    {Object.entries(routesByShip).map(([shipId, group], idx) => {
+      const color = CRUISE_COLORS[idx % CRUISE_COLORS.length];
+      // Сортируем по дате
+      const sorted = group.points.slice().sort((a, b) => new Date(a.date) - new Date(b.date));
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const points = sorted.map(route => {
+        const stopDate = new Date(route.date);
+        stopDate.setHours(0,0,0,0);
+        const dayNum = Math.floor((stopDate - today) / (1000 * 60 * 60 * 24));
+        // lng/lat могут быть строками, приводим к числу
+        const lng = typeof route.point?.lng === 'string' ? parseFloat(route.point.lng) : route.point?.lng;
+        const lat = typeof route.point?.lat === 'string' ? parseFloat(route.point.lat) : route.point?.lat;
+        return lonLatDayToVec3(lng, lat, dayNum);
+      });
+      if (points.length < 2) return null;
+      const ship = group.ship;
+      const isHovered = hoveredShipId === ship.id;
+      return (
+        <group key={shipId}>
+          <mesh
+            geometry={new TubeGeometry(new CatmullRomCurve3(points), 100, isHovered ? CRUISE_LINE_RADIUS * 2 : CRUISE_LINE_RADIUS, 16, false)}
+            renderOrder={10}
+            cursor="pointer"
+            onClick={e => {
+              e.stopPropagation();
+              setPopup({ open: true, ship, stops: sorted });
+            }}
+            onPointerOver={e => {
+              setTooltip && setTooltip({ visible: true, data: { type: 'ship', ship } });
+              setHoveredShipId(ship.id);
+            }}
+            onPointerOut={e => {
+              setTooltip && setTooltip({ visible: false });
+              setHoveredShipId(null);
+            }}
+          >
+            <meshBasicMaterial color={color} />
+          </mesh>
+          {sorted.map((route, stopIdx) => {
+            const stopDate = new Date(route.date);
+            stopDate.setHours(0,0,0,0);
+            const lng = typeof route.point?.lng === 'string' ? parseFloat(route.point.lng) : route.point?.lng;
+            const lat = typeof route.point?.lat === 'string' ? parseFloat(route.point.lat) : route.point?.lat;
+            const dayNum = Math.floor((stopDate - today) / (1000 * 60 * 60 * 24));
+            const pos = lonLatDayToVec3(lng, lat, dayNum);
+            return (
+              <mesh
+                key={route.id}
+                position={pos}
+                renderOrder={11}
+                cursor="pointer"
+                onPointerOver={e => {
+                  setTooltip && setTooltip({ visible: true, data: { type: 'port', route, ship } });
+                }}
+                onPointerOut={e => {
+                  setTooltip && setTooltip({ visible: false });
+                }}
+              >
+                <sphereGeometry args={[0.0125, 16, 16]} />
+                <meshBasicMaterial color={color} />
+              </mesh>
+            );
+          })}
+        </group>
+      );
+    })}
+  </>;
 }
 
 function CameraPersistence({ controlsRef }) {
@@ -351,6 +324,7 @@ function useKeyboardOrbit(controlsRef) {
 const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
   const [geojson, setGeojson] = useState(null);
   const [tooltip, setTooltip] = useState({ visible: false });
+  const [popup, setPopup] = useState({ open: false, ship: null, stops: [] });
   const radius = 2;
   const countryOffset = 0.01;
   const controlsRef = useRef();
@@ -386,14 +360,56 @@ const CruiseGlobe = ({ selectedShipIds, onCruiseClick }) => {
         </mesh>
         {/* Countries */}
         {geojson && <Countries geojson={geojson} radius={radius} offset={countryOffset} />}
-        {/* Cruises and ports */}
-        <CruiseRoutes selectedShipIds={selectedShipIds} onCruiseClick={onCruiseClick} setTooltip={setTooltip} />
+        {/* Ship routes and ports */}
+        <ShipRoutes selectedShipIds={selectedShipIds} setTooltip={setTooltip} setPopup={setPopup} />
         <OrbitControls enablePan={false} ref={controlsRef} />
         <CameraPersistence controlsRef={controlsRef} />
       </Canvas>
       <CruiseStatusBar tooltip={tooltip} />
+      {/* Попап теперь вне Canvas! */}
+      <ShipRouteDrawer
+        open={popup.open}
+        onClose={() => setPopup({ open: false, ship: null, stops: [] })}
+        ship={popup.ship}
+        stops={popup.stops}
+        onLoadMore={newStops => setPopup(popup => ({ ...popup, stops: newStops }))}
+      />
     </div>
   );
 };
+
+function CruiseStatusBar({ tooltip }) {
+  let text = '';
+  if (tooltip && tooltip.visible && tooltip.data) {
+    if (tooltip.data.type === 'port') {
+      const { route, ship } = tooltip.data;
+      text = `⚓ ${route.point?.name || ''}${route.point?.country ? ', ' + route.point.country : ''} — ${route.date ? formatDate(route.date) : ''} | 🚢 ${ship?.name || ''}${ship?.company?.name ? ' — ' + ship.company.name : ''}`;
+    } else if (tooltip.data.type === 'ship') {
+      const { ship } = tooltip.data;
+      text = `🚢 ${ship?.name || ''}${ship?.company?.name ? ' — ' + ship.company.name : ''}`;
+    }
+  }
+  if (!text) return null;
+  return (
+    <div style={{
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(30,40,60,0.98)',
+      color: '#fff',
+      fontWeight: 500,
+      fontSize: 16,
+      padding: '10px 24px',
+      borderTop: '1px solid #333',
+      zIndex: 2000,
+      textAlign: 'left',
+      letterSpacing: 0.2,
+      userSelect: 'none',
+      pointerEvents: 'none',
+      fontFamily: 'inherit',
+    }}>{text}</div>
+  );
+}
 
 export default CruiseGlobe; 

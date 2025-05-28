@@ -9,31 +9,29 @@ import Button from '@mui/material/Button';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 
-function groupShipsByCompany(ships, companies) {
-  // Returns [{ company_id, company_name, ships: [...] }]
+function groupShipsByCompany(ships) {
+  // Returns [{ company, ships: [...] }]
   const companyMap = {};
-  companies.forEach(c => {
-    companyMap[c.company_id] = { ...c, ships: [] };
-  });
   ships.forEach(ship => {
-    const cid = ship.company_id;
+    const company = ship.company || {};
+    const cid = company.id;
     if (!companyMap[cid]) {
-      companyMap[cid] = { company_id: cid, company_name: ship.company_name || 'Other', ships: [] };
+      companyMap[cid] = { company, ships: [] };
     }
     companyMap[cid].ships.push(ship);
   });
   // Sort companies and ships
   return Object.values(companyMap)
-    .sort((a, b) => (a.company_name || '').localeCompare(b.company_name || '', undefined, { sensitivity: 'base' }))
+    .sort((a, b) => (a.company?.name || '').localeCompare(b.company?.name || '', undefined, { sensitivity: 'base' }))
     .map(group => ({
       ...group,
-      ships: group.ships.slice().sort((a, b) => (a.ship_name || '').localeCompare(b.ship_name || '', undefined, { sensitivity: 'base' }))
+      ships: group.ships.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }))
     }));
 }
 
-const ShipFilter = ({ ships, companies, selectedShipIds, selectedCompanyIds, onChange }) => {
-  const grouped = groupShipsByCompany(ships, companies);
-  const allShipIds = ships.map(s => String(s.ship_id));
+const ShipFilter = ({ ships, selectedShipIds, selectedCompanyIds, onChange }) => {
+  const grouped = groupShipsByCompany(ships);
+  const allShipIds = ships.map(s => String(s.id));
   // State for expanded companies
   const [expandedCompanies, setExpandedCompanies] = useState([]);
 
@@ -81,12 +79,13 @@ const ShipFilter = ({ ships, companies, selectedShipIds, selectedCompanyIds, onC
       </Typography>
       <List sx={{ overflowY: 'auto', flex: 1, bgcolor: 'transparent', p: 0, m: 0 }}>
         {grouped.filter(group => group.ships.length > 0).map(group => {
-          const shipIds = group.ships.map(s => String(s.ship_id));
+          const companyId = group.company?.id;
+          const shipIds = group.ships.map(s => String(s.id));
           const allSelected = shipIds.length > 0 && shipIds.every(id => selectedShipIds.includes(id));
           const someSelected = shipIds.some(id => selectedShipIds.includes(id));
-          const expanded = expandedCompanies.includes(group.company_id);
+          const expanded = expandedCompanies.includes(companyId);
           return (
-            <React.Fragment key={group.company_id}>
+            <React.Fragment key={`Company-${companyId}`}>
               <ListItem disablePadding sx={{ bgcolor: '#23272f', p: 0, m: 0 }}>
                 <Checkbox
                   edge="start"
@@ -95,24 +94,24 @@ const ShipFilter = ({ ships, companies, selectedShipIds, selectedCompanyIds, onC
                   tabIndex={-1}
                   disableRipple
                   sx={{ color: '#2196f3', '&.Mui-checked': { color: '#2196f3' }, p: 0, m: '0 8px 0 0' }}
-                  onClick={() => handleToggleCompany(group.company_id, shipIds)}
+                  onClick={() => handleToggleCompany(companyId, shipIds)}
                 />
                 <ListItemText
-                  primary={<span style={{ color: '#90caf9', fontWeight: 500, fontSize: '13px', cursor: 'pointer' }}>{group.company_name || 'Other'}</span>}
-                  onClick={() => handleExpand(group.company_id)}
+                  primary={<span style={{ color: '#90caf9', fontWeight: 500, fontSize: '13px', cursor: 'pointer' }}>{group.company?.name || 'Other'}</span>}
+                  onClick={() => handleExpand(companyId)}
                   sx={{ m: 0, p: 0 }}
                 />
                 {expanded ? (
-                  <ExpandLessIcon sx={{ color: '#2196f3', cursor: 'pointer', m: 0, p: 0 }} onClick={() => handleExpand(group.company_id)} />
+                  <ExpandLessIcon sx={{ color: '#2196f3', cursor: 'pointer', m: 0, p: 0 }} onClick={() => handleExpand(companyId)} />
                 ) : (
-                  <ExpandMoreIcon sx={{ color: '#2196f3', cursor: 'pointer', m: 0, p: 0 }} onClick={() => handleExpand(group.company_id)} />
+                  <ExpandMoreIcon sx={{ color: '#2196f3', cursor: 'pointer', m: 0, p: 0 }} onClick={() => handleExpand(companyId)} />
                 )}
               </ListItem>
-              {expanded && group.ships.map(ship => (
-                <ListItem key={ship.ship_id} disablePadding button onClick={() => handleToggleShip(ship.ship_id)} sx={{ pl: 3, p: 0, m: '0 0 0 30px' }}>
+              {expanded && group.ships.map((ship, idx) => (
+                <ListItem key={ship.id || `${ship.name}-${idx}`} disablePadding button onClick={() => handleToggleShip(ship.id)} sx={{ pl: 3, p: 0, m: '0 0 0 30px' }}>
                   <Checkbox
                     edge="start"
-                    checked={selectedShipIds.includes(String(ship.ship_id))}
+                    checked={selectedShipIds.includes(String(ship.id))}
                     tabIndex={-1}
                     disableRipple
                     sx={{ color: '#2196f3', '&.Mui-checked': { color: '#2196f3' }, p: 0, m: '0 8px 0 0' }}
@@ -120,7 +119,7 @@ const ShipFilter = ({ ships, companies, selectedShipIds, selectedCompanyIds, onC
                   <ListItemText
                     primary={
                       <span style={{ color: '#fff', fontSize: '12px' }}>
-                        {ship.ship_name}
+                        {ship.name}
                       </span>
                     }
                     sx={{ m: 0, p: 0 }}
